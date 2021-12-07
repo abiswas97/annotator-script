@@ -1,0 +1,64 @@
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+printf "00000000000000000000000000000000000000000000000\n\n"
+printf "      $(tput bold)Azure Annotator Connection Script$(tput sgr0)\n\n"
+printf "00000000000000000000000000000000000000000000000\n\n"
+
+# check if VM is online
+if ! nc -zw 2 104.211.92.187 22; then
+	echo "Azure VM is not online"
+    echo "VM can be started from www.portal.azure.com/"
+	exit # quit if not online
+else
+	if [ $# -eq 0 ]; then
+		echo "No key provided, will search for potential keys."
+		
+		printf "Script finds keys of the form annotator_key.pem in [/home/$(whoami)/] and [/media/]\n"
+		printf "\n${GREEN}Searching for keys....${NC}\n"
+		
+		# Search for keys
+		files=$(find /home/$(whoami) /media -name annotator_key.pem 2>/dev/null)
+		
+		if [[ $(($(echo $files | grep -o " " | wc -l)+1)) -eq 1 ]]; then
+			echo "No key found, and no key provided. Exiting..."
+			exit 1
+		else
+			PS3="Please choose a key to use: "
+			# Launch a select menu
+			select file in $files "Exit"
+			do
+				case $file in 
+				$file)
+					printf "\nChosen key is $file"
+					key=$file # get key
+					break # make sure loop ends and doesn't persist
+					;;
+				*)
+				esac	
+			done
+
+			if [[ $key -eq 'Exit' ]]; then
+				printf "\n$(tput setaf 1)Exiting... $(tput sgr0)"
+				exit
+			fi
+		fi
+	else 
+		echo "Using provided key $1"
+		key=$1
+	fi
+	
+	printf "\nAzure VM is online. Attempting to connect..."  
+	printf "\nUsing key $key ...\n"  
+
+	## batchmode=yes ensures script errors out if key is invalid
+	ssh -i $key -o  batchmode=yes azureuser@104.211.92.187 '
+		echo "Connected succesfully!"
+		cd /home/azureuser/osd
+		printf "\nStarting server... \n"
+		printf "    Annotator is hosted at http://104.211.92.187:8080/annotations.html \n"
+		nohup live-server --ignore=./ > /dev/null
+		'
+	#fi
+fi
