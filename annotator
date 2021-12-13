@@ -7,9 +7,9 @@ printf "      $(tput bold)Azure Annotator Connection Script$(tput sgr0)\n\n"
 printf "00000000000000000000000000000000000000000000000\n\n"
 
 # check if VM is online
-if ! nc -zw 2 104.211.92.187 22; then
+if ! nc -zw 5 104.211.92.187 22; then
 	echo "Azure VM is not online"
-    echo "VM can be started from www.portal.azure.com/"
+    echo "VM can be started from https://www.portal.azure.com/"
 	exit # quit if not online
 else
 	if [ $# -eq 0 ]; then
@@ -54,11 +54,21 @@ else
 
 	## batchmode=yes ensures script errors out if key is invalid
 	ssh -i $key -o  batchmode=yes azureuser@104.211.92.187 '
-		echo "Connected succesfully!"
+		printf "\nStarting main server... \n"
 		cd /home/azureuser/osd
-		printf "\nStarting server... \n"
-		printf "    Annotator is hosted at http://104.211.92.187:8080/annotations.html \n"
-		nohup live-server --ignore=./ > /dev/null
+		nohup live-server --port=8080 --ignore=./ > /dev/null &
+		exit
 		'
-	#fi
+	printf "    Annotator (main) is hosted at http://104.211.92.187:8080/annotations.html \n"
+
+
+	ssh -i $key -o  batchmode=yes azureuser@104.211.92.187 '
+		printf "\nStarting dev server... \n"
+		cd /home/azureuser/osd-dev
+		nohup live-server --port=5500 --ignore=./ > /dev/null &
+		exit
+		'
+	printf "    Annotator (dev) is hosted at http://104.211.92.187:5500/annotations.html \n"
+
+	exit
 fi
